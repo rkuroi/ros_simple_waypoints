@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>simple_waypoints</name>
-  <version>0.0.0</version>
-  <description>The simple_waypoints package</description>
+  <name>ros_simple_waypoints</name>
+  <version>0.0.1</version>
+  <description>Work in progress to manipulate sequences of waypoints for use with the ROS navigation stack, (namely move_base)</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
