@@ -1,0 +1,3 @@
+bool skip # if true, continue with next waypoint, else stop the whole sequence
+---
+bool success

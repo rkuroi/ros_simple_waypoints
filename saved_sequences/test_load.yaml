@@ -1,0 +1,59 @@
+waypoints_sequence:
+  nb_waypoints: 4
+  waypoints:
+    - header:
+        seq: 0
+        time: 0
+        frame_id: odom
+      pose:
+        position:
+          x: 0.02424001693725586
+          y: -1.026294708251953
+          z: 0
+        orientation:
+          x: 0
+          y: 0
+          z: 0.1289952364858419
+          w: 0.9916452132511716
+    - header:
+        seq: 0
+        time: 0
+        frame_id: odom
+      pose:
+        position:
+          x: 0.08574533462524414
+          y: -2.526754856109619
+          z: 0
+        orientation:
+          x: 0
+          y: 0
+          z: -0.5215899775307135
+          w: 0.8531962818364306
+    - header:
+        seq: 0
+        time: 0
+        frame_id: odom
+      pose:
+        position:
+          x: -2.389877796173096
+          y: -2.538383483886719
+          z: 0
+        orientation:
+          x: 0
+          y: 0
+          z: 0.9701188838665048
+          w: 0.2426300706128715
+    - header:
+        seq: 0
+        time: 0
+        frame_id: odom
+      pose:
+        position:
+          x: -3.265445232391357
+          y: -1.233749866485596
+          z: 0
+        orientation:
+          x: 0
+          y: 0
+          z: 0.05527189063889947
+          w: 0.998471340652901
