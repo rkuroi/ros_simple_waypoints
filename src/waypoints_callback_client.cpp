@@ -1,11 +1,11 @@
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
 #include <move_base_msgs/MoveBaseAction.h>
-#include <simple_waypoints/CancelCurrentWaypoint.h>
-#include <simple_waypoints/ClearWaypointsSequence.h>
-#include <simple_waypoints/LoadWaypointsSequence.h>
-#include <simple_waypoints/SaveWaypointsSequence.h>
-#include <simple_waypoints/StartWaypointsSequence.h>
+#include <ros_simple_waypoints/CancelCurrentWaypoint.h>
+#include <ros_simple_waypoints/ClearWaypointsSequence.h>
+#include <ros_simple_waypoints/LoadWaypointsSequence.h>
+#include <ros_simple_waypoints/SaveWaypointsSequence.h>
+#include <ros_simple_waypoints/StartWaypointsSequence.h>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 
@@ -111,7 +111,7 @@ public:
     ROS_INFO("Server came up. Ready to send goals");
 
     // subscribe to a topic on which the goals are published by another node (i.e. rviz)
-    waypoints_definition_sub_ = nh.subscribe<geometry_msgs::PoseStamped>("simple_waypoints_definition", 1, &WaypointsCallbackNode::addWaypoint, this);
+    waypoints_definition_sub_ = nh.subscribe<geometry_msgs::PoseStamped>("ros_simple_waypoints_definition", 1, &WaypointsCallbackNode::addWaypoint, this);
 
     // advertise all servers needed for the user to give commands
     cancel_current_waypoint_server_ = nh.advertiseService("cancel_current_waypoint", &WaypointsCallbackNode::cancelCurrentWaypoint, this);
@@ -169,7 +169,7 @@ public:
   }
 
   // Cancel current waypoint and either try to go on to the next or cancel the whole sequence
-  bool cancelCurrentWaypoint(simple_waypoints::CancelCurrentWaypointRequest& req, simple_waypoints::CancelCurrentWaypointResponse& res)
+  bool cancelCurrentWaypoint(ros_simple_waypoints::CancelCurrentWaypointRequest& req, ros_simple_waypoints::CancelCurrentWaypointResponse& res)
   {
     res.success = false;
     if (req.skip)
@@ -210,7 +210,7 @@ public:
   }
 
   // Erase the current list of waypoints
-  bool clearWaypointsSequence(simple_waypoints::ClearWaypointsSequenceRequest& req, simple_waypoints::ClearWaypointsSequenceResponse& res)
+  bool clearWaypointsSequence(ros_simple_waypoints::ClearWaypointsSequenceRequest& req, ros_simple_waypoints::ClearWaypointsSequenceResponse& res)
   {
     try
     {
@@ -227,7 +227,7 @@ public:
   }
 
   // Start sending the sequence
-  bool startWaypointsSequence(simple_waypoints::StartWaypointsSequenceRequest& req, simple_waypoints::StartWaypointsSequenceResponse& res)
+  bool startWaypointsSequence(ros_simple_waypoints::StartWaypointsSequenceRequest& req, ros_simple_waypoints::StartWaypointsSequenceResponse& res)
   {
     if (!waypoints_list_.empty())
     {
@@ -255,7 +255,7 @@ public:
   }
 
   // load the sequence of waypoints to a YAML file
-  bool loadWaypointsSequence(simple_waypoints::LoadWaypointsSequenceRequest& req, simple_waypoints::LoadWaypointsSequenceResponse& res)
+  bool loadWaypointsSequence(ros_simple_waypoints::LoadWaypointsSequenceRequest& req, ros_simple_waypoints::LoadWaypointsSequenceResponse& res)
   {
     std::string filepath = req.filepath; // TODO: sanitize input
     try
@@ -275,7 +275,7 @@ public:
   }
 
   // Save the sequence of waypoints to a YAML file
-  bool saveWaypointsSequence(simple_waypoints::SaveWaypointsSequenceRequest& req, simple_waypoints::SaveWaypointsSequenceResponse& res)
+  bool saveWaypointsSequence(ros_simple_waypoints::SaveWaypointsSequenceRequest& req, ros_simple_waypoints::SaveWaypointsSequenceResponse& res)
   {
     std::string filepath = req.filepath; // TODO: sanitize input
     try
@@ -298,7 +298,7 @@ public:
 
 int main (int argc, char **argv)
 {
-  ros::init(argc, argv, "simple_waypoints_callback");
+  ros::init(argc, argv, "ros_simple_waypoints_callback");
   WaypointsCallbackNode waypoints_cb_node;
   ros::spin();
   return 0;
