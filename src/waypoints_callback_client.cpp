@@ -6,6 +6,9 @@
 #include <ros_simple_waypoints/LoadWaypointsSequence.h>
 #include <ros_simple_waypoints/SaveWaypointsSequence.h>
 #include <ros_simple_waypoints/StartWaypointsSequence.h>
+#include <ros_simple_waypoints/PublishWaypointsSequence.h>
+#include <tf/transform_datatypes.h>
+#include <geometry_msgs/PoseArray.h>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 
@@ -89,15 +92,18 @@ class WaypointsCallbackNode
 {
 private:
   std::list<move_base_msgs::MoveBaseGoal> waypoints_list_;
-  std::list<move_base_msgs::MoveBaseGoal>::iterator waypoints_it_;
+  std::list<move_base_msgs::MoveBaseGoal>::iterator current_waypoints_it_;
+  std::list<move_base_msgs::MoveBaseGoal>::iterator last_waypoint_it_;
   unsigned int current_waypoint_index_;
   MoveBaseClient mbc_;
   ros::Subscriber waypoints_definition_sub_;
+  ros::Publisher waypoints_export_pub_;
   ros::ServiceServer cancel_current_waypoint_server_;
   ros::ServiceServer clear_waypoints_sequence_server_;
   ros::ServiceServer load_waypoints_sequence_server_;
   ros::ServiceServer save_waypoints_sequence_server_;
   ros::ServiceServer start_waypoints_sequence_server_;
+  ros::ServiceServer publish_waypoints_sequence_server_;
 public:
   WaypointsCallbackNode() : mbc_("move_base", true)
   {
@@ -111,7 +117,10 @@ public:
     ROS_INFO("Server came up. Ready to send goals");
 
     // subscribe to a topic on which the goals are published by another node (i.e. rviz)
-    waypoints_definition_sub_ = nh.subscribe<geometry_msgs::PoseStamped>("ros_simple_waypoints_definition", 1, &WaypointsCallbackNode::addWaypoint, this);
+    waypoints_definition_sub_ = nh.subscribe<geometry_msgs::PoseStamped>("simple_waypoints_definition", 1, &WaypointsCallbackNode::addWaypoint, this);
+
+    // publish the list of waypoints for visualization
+    waypoints_export_pub_ = nh.advertise<geometry_msgs::PoseArray>("current_waypoints_array", 1);
 
     // advertise all servers needed for the user to give commands
     cancel_current_waypoint_server_ = nh.advertiseService("cancel_current_waypoint", &WaypointsCallbackNode::cancelCurrentWaypoint, this);
@@ -119,6 +128,7 @@ public:
     load_waypoints_sequence_server_ = nh.advertiseService("load_waypoints_sequence", &WaypointsCallbackNode::loadWaypointsSequence, this);
     save_waypoints_sequence_server_ = nh.advertiseService("save_waypoints_sequence", &WaypointsCallbackNode::saveWaypointsSequence, this);
     start_waypoints_sequence_server_ = nh.advertiseService("start_waypoints_sequence", &WaypointsCallbackNode::startWaypointsSequence, this);
+    publish_waypoints_sequence_server_ = nh.advertiseService("publish_waypoints_sequence", &WaypointsCallbackNode::publishWaypointsSequence, this);
   }
 
   ~WaypointsCallbackNode()
@@ -131,8 +141,8 @@ public:
     ROS_INFO("Finished in state [%s]", state.toString().c_str());
     if (state == state.SUCCEEDED)
     {
-      ++waypoints_it_; current_waypoint_index_++;
-      if (waypoints_it_ == waypoints_list_.end())
+      ++current_waypoints_it_; current_waypoint_index_++;
+      if (current_waypoints_it_ == waypoints_list_.end())
       {
         ROS_INFO("End of waypoints sequence reached");
       }
@@ -159,9 +169,9 @@ public:
   void sendCurrentWaypoint()
   {
     move_base_msgs::MoveBaseGoal goal;
-    goal.target_pose.header.frame_id = waypoints_it_->target_pose.header.frame_id;
+    goal.target_pose.header.frame_id = current_waypoints_it_->target_pose.header.frame_id;
     goal.target_pose.header.stamp = ros::Time::now();
-    goal.target_pose.pose = waypoints_it_->target_pose.pose;
+    goal.target_pose.pose = current_waypoints_it_->target_pose.pose;
     mbc_.sendGoal(goal, 
       boost::bind(&WaypointsCallbackNode::doneCb, this, _1, _2),
       boost::bind(&WaypointsCallbackNode::activeCb, this),
@@ -174,8 +184,8 @@ public:
     res.success = false;
     if (req.skip)
     {
-      ++waypoints_it_;
-      if (waypoints_it_ == waypoints_list_.end())
+      ++current_waypoints_it_;
+      if (current_waypoints_it_ == waypoints_list_.end())
       {
         ROS_INFO("Cannot skip last waypoint, aborting instead");
         mbc_.cancelGoal();
@@ -206,6 +216,20 @@ public:
     new_waypoint.target_pose.header.stamp = ros::Time::now();
     new_waypoint.target_pose.pose = msg->pose;
     waypoints_list_.push_back(new_waypoint);
+    // adapt goal orientation of previous waypoint to face the new one
+    if (waypoints_list_.size()>1) // if there is a previous one
+    {
+      double delta_x, delta_y, heading;
+      delta_x = waypoints_list_.back().target_pose.pose.position.x - last_waypoint_it_->target_pose.pose.position.x;
+      delta_y = waypoints_list_.back().target_pose.pose.position.y - last_waypoint_it_->target_pose.pose.position.y;
+      heading = atan2(delta_y, delta_x);
+      last_waypoint_it_->target_pose.pose.orientation = tf::createQuaternionMsgFromYaw(heading);
+      ++last_waypoint_it_;
+    }
+    else
+    {
+      last_waypoint_it_ = waypoints_list_.begin();
+    }   
     ROS_INFO("Added new waypoint to list");
   }
 
@@ -231,7 +255,7 @@ public:
   {
     if (!waypoints_list_.empty())
     {
-      waypoints_it_ = waypoints_list_.begin();
+      current_waypoints_it_ = waypoints_list_.begin();
       current_waypoint_index_ = 1;
       sendCurrentWaypoint();
       res.success = true;
@@ -249,7 +273,7 @@ public:
   {
     if (!waypoints_list_.empty())
     {
-      waypoints_it_ = waypoints_list_.begin();
+      current_waypoints_it_ = waypoints_list_.begin();
       current_waypoint_index_ = 1;
     }
   }
@@ -294,12 +318,47 @@ public:
     }
     return res.success;
   }
+
+  bool publishWaypointsSequence(ros_simple_waypoints::PublishWaypointsSequenceRequest& req, ros_simple_waypoints::PublishWaypointsSequenceResponse& res)
+  {
+    if (!waypoints_list_.empty())
+    {
+      try
+      {
+        geometry_msgs::PoseArray wp_array;
+        geometry_msgs::Pose wp;
+        auto wp_it = waypoints_list_.begin();
+        wp_array.header.frame_id = wp_it->target_pose.header.frame_id; // TODO: ensure frame_id is the same for all points
+        wp_array.header.stamp = ros::Time::now();
+        while (wp_it != waypoints_list_.end())
+        {
+          wp.orientation = wp_it->target_pose.pose.orientation;
+          wp.position = wp_it->target_pose.pose.position;
+          wp_array.poses.push_back(wp);
+          ++wp_it;
+        }
+        waypoints_export_pub_.publish(wp_array);
+        res.success = true;
+      }
+      catch(const std::exception& e)
+      {
+        std::cerr << e.what() << '\n';
+        res.success = false;
+      }
+    }
+    else
+    {
+      ROS_INFO("Cannot publish empty waypoints list");
+      res.success = false;
+    }
+    return res.success;
+  }
 };
 
 int main (int argc, char **argv)
 {
   ros::init(argc, argv, "ros_simple_waypoints_callback");
-  WaypointsCallbackNode waypoints_cb_node;
+  WaypointsCallbackNode waypoints_cb_node; 
   ros::spin();
   return 0;
 }

@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(ros_simple_waypoints)
 
+# set(CMAKE_AUTOMOC ON)
+# set(CMAKE_AUTORCC ON)
+# set(CMAKE_AUTOUIC ON)
+
+# if (CMAKE_VERSION VERSION_LESS "3.7.0")
+#   set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# endif()
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -13,7 +21,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
   std_msgs
+  # rviz
 )
+
+# Qt is needed for the rviz plugin
+# find_package(Qt5 COMPONENTS Core Gui REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -63,6 +75,7 @@ add_service_files(
   LoadWaypointsSequence.srv
   SaveWaypointsSequence.srv
   StartWaypointsSequence.srv
+  PublishWaypointsSequence.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -108,9 +121,9 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
+ INCLUDE_DIRS include/ros_simple_waypoints
 #  LIBRARIES ros_simple_waypoints
- CATKIN_DEPENDS actionlib move_base_msgs std_msgs roscpp
+ CATKIN_DEPENDS actionlib move_base_msgs std_msgs roscpp # rviz
 #  DEPENDS system_lib
 )
 
@@ -121,7 +134,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include/ros_simple_waypoints
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -157,6 +170,9 @@ include_directories(
 
 add_executable(waypoints_callback_client src/waypoints_callback_client.cpp)
 target_link_libraries(waypoints_callback_client ${catkin_LIBRARIES} yaml-cpp)
+
+# add_executable(rviz_waypoint_tool src/rviz_waypoint_tool.cpp)
+# target_link_libraries(rviz_waypoint_tool ${catkin_LIBRARIES} Qt5::Core Qt5::Gui)
 
 #############
 ## Install ##
